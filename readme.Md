@@ -1,4 +1,4 @@
-# Image Capture and Data Storage
+# Hack-Camera-Location-Flask
 
 This project allows users to capture images using their device's front and back cameras, retrieve battery percentage, IP address, and save the captured images along with user data. The application is built using Flask and JavaScript.
 
